@@ -13,7 +13,7 @@ import {
 import { Clipboard, RefreshCw } from 'lucide-react'
 import { Slider } from '@/components/ui/slider'
 import { useState } from 'react'
-import { API_BASE_URL } from '@/constants'
+import { REACT_APP_API_BASE_URL } from '@/constants'
 
 const WalletSchema = z.object({
   publicKey: z.string(),
@@ -27,6 +27,7 @@ const WalletsResponseSchema = z.object({
 type Wallet = z.infer<typeof WalletSchema>
 
 export const WalletGenerator: React.FC = () => {
+ 
   const [mnemonic, setMnemonic] = useState<string>('')
   const [wallets, setWallets] = useState<Wallet[]>([])
   const [walletCount, setWalletCount] = useState<number>(5)
@@ -35,7 +36,7 @@ export const WalletGenerator: React.FC = () => {
   const generateMnemonic = async () => {
     try {
       const response = await axios.post<{ mnemonic: string }>(
-        `${API_BASE_URL}/generate-mnemonic`
+        `${REACT_APP_API_BASE_URL}/generate-mnemonic`
       )
       setMnemonic(response.data.mnemonic)
       setWallets([])
@@ -64,10 +65,13 @@ export const WalletGenerator: React.FC = () => {
     setIsGenerating(true)
 
     try {
-      const response = await axios.post(`${API_BASE_URL}/generate-wallets`, {
-        mnemonic,
-        walletCount,
-      })
+      const response = await axios.post(
+        `${REACT_APP_API_BASE_URL}/generate-wallets`,
+        {
+          mnemonic,
+          walletCount,
+        }
+      )
 
       const parsedResponse = WalletsResponseSchema.parse(response.data)
       setWallets(parsedResponse.wallets)

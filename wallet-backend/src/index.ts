@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { type NextFunction, type Request, type Response } from 'express';
 import cors from 'cors';
 import * as bip39 from 'bip39';
 import { HDKey } from 'micro-ed25519-hdkey';
@@ -16,7 +16,7 @@ app.use(express.json());
 
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, 
-  max: 100 
+  max: 30
 });
 
 app.use(limiter);
@@ -33,12 +33,12 @@ const GenerateWalletsRequestSchema = z.object({
 
 type Wallet = z.infer<typeof WalletSchema>;
 
-app.post('/generate-mnemonic', (req, res) => {
+app.post('/generate-mnemonic', (req: Request, res: Response) => {
   const mnemonic = bip39.generateMnemonic();
   res.json({ mnemonic });
 });
 
-app.post('/generate-wallets', async (req, res) => {
+app.post('/generate-wallets', async (req: Request, res: Response) => {
   try {
     const { mnemonic, walletCount } = GenerateWalletsRequestSchema.parse(req.body);
 
@@ -69,7 +69,7 @@ app.post('/generate-wallets', async (req, res) => {
 });
 
 
-app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
+app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
   console.error(err.stack);
   res.status(500).send('Something broke!');
 });
