@@ -7,7 +7,7 @@
   "scripts": {
     "dev" : "tsc -b && node dist/index.js",
     "start" : "tsc -b && node dist/index.js",
-    "build": "tsc -b"
+    "build": "npm install && tsc -b"
   },
   "peerDependencies": {
     "typescript": "^5.0.0"
