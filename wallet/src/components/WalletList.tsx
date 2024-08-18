@@ -1,9 +1,10 @@
 import React from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { ExtendedWalletSchemaValue, WalletItem } from './WalletItem'
+import { WalletItem } from './WalletItem'
+import { WalletSchemaValue } from '@/schemas'
 
 interface WalletListProps {
-  wallets: ExtendedWalletSchemaValue[]
+  wallets: WalletSchemaValue[]
 }
 
 export const WalletList: React.FC<WalletListProps> = ({ wallets }) => {
@@ -13,7 +14,7 @@ export const WalletList: React.FC<WalletListProps> = ({ wallets }) => {
         <CardTitle>Generated Wallets</CardTitle>
       </CardHeader>
       <CardContent>
-        <ul className='space-y-3'>
+        <ul className='space-y-4'>
           {wallets.map((wallet, index) => (
             <WalletItem
               key={`${wallet.type}-${index}`}

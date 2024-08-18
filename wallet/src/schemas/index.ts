@@ -5,6 +5,7 @@ export const WalletSchema = z.object({
   path: z.string(),
   privateKey: z.string(),
   balance: z.number().optional(),
+  type: z.enum(['solana', 'ethereum'])
 })
 
 export type WalletSchemaValue = z.infer<typeof WalletSchema>

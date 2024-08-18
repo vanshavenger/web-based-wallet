@@ -2,19 +2,14 @@ import express, { type NextFunction, type Request, type Response } from 'express
 import cors from 'cors'
 import * as bip39 from 'bip39'
 import { HDKey } from 'micro-ed25519-hdkey'
-import { Connection, Keypair, LAMPORTS_PER_SOL, PublicKey } from '@solana/web3.js'
+import { Connection, Keypair, LAMPORTS_PER_SOL, PublicKey, SystemProgram, Transaction } from '@solana/web3.js'
 import { ethers } from 'ethers'
-import * as ecc from 'tiny-secp256k1'
-import { BIP32Factory } from 'bip32'
 import { z } from 'zod'
 import rateLimit from 'express-rate-limit'
 import bs58 from 'bs58'
-import axios from 'axios'
 import { configDotenv } from 'dotenv'
 
 configDotenv()
-
-const bip32 = BIP32Factory(ecc)
 
 const app = express()
 const port = 8080
@@ -27,18 +22,27 @@ const limiter = rateLimit({
   max: 30
 })
 
-// app.use(limiter)
+app.use(limiter)
 
 const WalletSchema = z.object({
   publicKey: z.string(),
   path: z.string(),
   privateKey: z.string(),
+  balance: z.number().optional(),
+  type: z.enum(['solana', 'ethereum'])
 })
 
 const GenerateWalletRequestSchema = z.object({
   mnemonic: z.string().min(1),
   walletType: z.enum(['solana', 'ethereum']),
   index: z.number().int().min(0),
+})
+
+const SendTransactionRequestSchema = z.object({
+  fromPublicKey: z.string(),
+  toPublicKey: z.string(),
+  amount: z.number().positive(),
+  privateKey: z.string(),
 })
 
 type Wallet = z.infer<typeof WalletSchema>
@@ -48,18 +52,33 @@ app.post('/generate-mnemonic', (req: Request, res: Response) => {
   res.json({ mnemonic })
 })
 
-app.post('/ask-airdrop', async (req: Request, res: Response) => {
-  const { publicKey } = req.body
-  if (!publicKey) {
-    return res.status(400).json({ error: "Public key is required" })
+app.post('/request-airdrop', async (req: Request, res: Response) => {
+  try {
+    const { publicKey } = req.body
+
+    if (!publicKey) {
+      return res.status(400).json({ error: "Public key is required" })
+    }
+
+    const connection = new Connection(process.env.SOLANA_RPC || "https://api.testnet.solana.com", "confirmed")
+    
+    try {
+      const airdropSignature = await connection.requestAirdrop(
+        new PublicKey(publicKey),
+        LAMPORTS_PER_SOL
+      )
+      
+      await connection.confirmTransaction(airdropSignature)
+      
+      res.json({ signature: airdropSignature })
+    } catch (error) {
+      console.error("Error requesting airdrop:", error)
+      res.status(500).json({ error: "Failed to request airdrop" })
+    }
+  } catch (error) {
+    console.error(error)
+    res.status(500).json({ error: "An unexpected error occurred" })
   }
-
-  const connection = new Connection("https://api.testnet.solana.com", "confirmed");
-  const myAddress = new PublicKey(publicKey);
-  const signature = await connection.requestAirdrop(myAddress, LAMPORTS_PER_SOL);
-
-  console.log("Airdrop requested with signature", signature);
-  await connection.confirmTransaction(signature);
 })
 
 app.post('/generate-wallet', async (req: Request, res: Response) => {
@@ -95,35 +114,59 @@ app.post('/generate-wallet', async (req: Request, res: Response) => {
   }
 })
 
-app.post('/get-balance', async (req: Request, res: Response) => {
-  const { publicKey } = req.body
-  if (!publicKey) {
-    return res.status(400).json({ error: "Public key is required" })
+app.post('/send-transaction', async (req: Request, res: Response) => {
+  try {
+    const { fromPublicKey, toPublicKey, amount, privateKey } = SendTransactionRequestSchema.parse(req.body)
+
+    const connection = new Connection(process.env.SOLANA_RPC || "https://api.testnet.solana.com", "confirmed")
+    const fromPubkey = new PublicKey(fromPublicKey)
+    const toPubkey = new PublicKey(toPublicKey)
+    
+    const transaction = new Transaction().add(
+      SystemProgram.transfer({
+        fromPubkey,
+        toPubkey,
+        lamports: amount * LAMPORTS_PER_SOL,
+      })
+    )
+
+    const signers = [Keypair.fromSecretKey(bs58.decode(privateKey))]
+
+    const signature = await connection.sendTransaction(transaction, signers)
+    
+    res.json({ signature })
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      res.status(400).json({ error: "Invalid input", details: error.errors })
+    } else {
+      console.error(error)
+      res.status(500).json({ error: "An unexpected error occurred" })
+    }
   }
+})
 
-  let data = JSON.stringify({
-  "jsonrpc": "2.0",
-  "id": 1,
-  "method": "getBalance",
-  "params": [
-    publicKey
-  ]
-});
+app.get('/get-balance/:publicKey', async (req: Request, res: Response) => {
+  try {
+    const { publicKey } = req.params
+    
+    if (!publicKey) {
+      return res.status(400).json({ error: "Public key is required" })
+    }
 
-let config = {
-  method: 'post',
-  maxBodyLength: Infinity,
-  url: process.env.SOLANA_RPC,
-  data : data
-};
-
-const response = await axios.request(config)
-
-  
-  const balance = parseInt(response.data.result.value)
-  const correctBalance = (balance / 1000_000_000).toString()
-
-  res.json({ balance: correctBalance })
+    const connection = new Connection(process.env.SOLANA_RPC || "https://api.testnet.solana.com", "confirmed")
+    
+    try {
+      const balance = await connection.getBalance(new PublicKey(publicKey))
+      const solBalance = balance / LAMPORTS_PER_SOL
+      res.json({ balance: solBalance.toFixed(9) }) // 9 decimal places for SOL
+    } catch (error) {
+      console.error("Error fetching balance:", error)
+      res.status(500).json({ error: "Failed to fetch balance" })
+    }
+  } catch (error) {
+    console.error(error)
+    res.status(500).json({ error: "An unexpected error occurred" })
+  }
 })
 
 function generateSolanaWallet(seed: Buffer, index: number): Wallet {
@@ -134,6 +177,8 @@ function generateSolanaWallet(seed: Buffer, index: number): Wallet {
     publicKey: keypair.publicKey.toBase58(),
     path: path,
     privateKey: bs58.encode(keypair.secretKey),
+    type: 'solana', 
+
   }
 }
 
@@ -145,6 +190,7 @@ function generateEthereumWallet(seed: Buffer, index: number): Wallet {
     publicKey: wallet.address,
     path: path,
     privateKey: wallet.privateKey,
+    type: 'ethereum',
   }
 }
 

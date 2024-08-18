@@ -8,15 +8,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { WalletGeneratorForm } from './WalletGeneratorForm'
 import { WalletList } from './WalletList'
 
-type WalletType = 'solana' | 'ethereum'
-
-interface ExtendedWalletSchemaValue extends WalletSchemaValue {
-  type: WalletType
-}
+export type WalletType = 'solana' | 'ethereum'
 
 export const WalletGenerator: React.FC = () => {
   const [mnemonic, setMnemonic] = useState<string>('')
-  const [wallets, setWallets] = useState<ExtendedWalletSchemaValue[]>([])
+  const [wallets, setWallets] = useState<WalletSchemaValue[]>([])
   const [isGenerating, setIsGenerating] = useState<boolean>(false)
   const [mnemonicSaved, setMnemonicSaved] = useState<boolean>(false)
   const [activeTab, setActiveTab] = useState<WalletType>('solana')
@@ -57,7 +53,7 @@ export const WalletGenerator: React.FC = () => {
       )
 
       const parsedResponse = WalletsResponseSchema.parse(response.data)
-      const newWallet: ExtendedWalletSchemaValue = {
+      const newWallet: WalletSchemaValue = {
         ...parsedResponse.wallets[0],
         type: activeTab,
       }
@@ -87,7 +83,7 @@ export const WalletGenerator: React.FC = () => {
         value={activeTab}
         onValueChange={(value) => setActiveTab(value as WalletType)}
       >
-        <TabsList>
+        <TabsList className='grid w-full grid-cols-2'>
           <TabsTrigger value='solana'>Solana</TabsTrigger>
           <TabsTrigger value='ethereum'>Ethereum</TabsTrigger>
         </TabsList>
