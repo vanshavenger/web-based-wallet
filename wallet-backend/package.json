@@ -5,8 +5,8 @@
     "@types/bun": "latest"
   },
   "scripts": {
-    "dev" : "tsc -b && node dist/index.js",
-    "start" : "tsc -b && node dist/index.js",
+    "dev": "tsc -b && node dist/index.js",
+    "start": "tsc -b && node dist/index.js",
     "build": "npm install && tsc -b"
   },
   "peerDependencies": {
@@ -16,11 +16,17 @@
     "@solana/web3.js": "^1.95.2",
     "@types/cors": "^2.8.17",
     "@types/express": "^4.17.21",
+    "axios": "^1.7.4",
+    "bip32": "^4.0.0",
     "bip39": "^3.1.0",
+    "bs58": "^6.0.0",
     "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "ethers": "^6.13.2",
     "express": "^4.19.2",
     "express-rate-limit": "^7.4.0",
     "micro-ed25519-hdkey": "^0.1.2",
+    "tiny-secp256k1": "^2.2.3",
     "zod": "^3.23.8"
   }
 }
